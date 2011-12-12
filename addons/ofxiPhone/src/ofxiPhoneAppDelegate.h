@@ -45,10 +45,10 @@
 @property (nonatomic, retain) UIViewController* viewController;
 @property (nonatomic, retain) EAGLView*         glView;
 @property (nonatomic, retain) NSLock*           glLock;
-@property (nonatomic, retain) NSTimer*          animationTimer;
+@property (nonatomic, retain) NSTimer*          animTimer;
+@property (nonatomic, assign) float				animFrameInterval;
 @property (nonatomic, assign) BOOL				animating;
 @property (nonatomic, assign) BOOL				displayLinkSupported;
-@property (nonatomic, assign) float				animationFrameInterval;
 @property (nonatomic, assign) id				displayLink;
 
 -(EAGLView*) getGLView;

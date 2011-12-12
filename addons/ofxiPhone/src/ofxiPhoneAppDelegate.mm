@@ -42,10 +42,10 @@
 @synthesize viewController;
 @synthesize glView;
 @synthesize glLock;
-@synthesize animationTimer;
+@synthesize animTimer;
+@synthesize animFrameInterval;
 @synthesize animating;
 @synthesize displayLinkSupported;
-@synthesize animationFrameInterval;
 @synthesize displayLink;
 
 
@@ -61,10 +61,11 @@
 	//	[pool release];
 }
 
--(EAGLView*) getGLView
+-(EAGLView*) getGLView 
 {
     return self.glView;
 }
+
 
 -(void)lockGL 
 {
@@ -94,10 +95,6 @@
 	// create fullscreen window
 	self.window = [[UIWindow alloc] initWithFrame:screenBounds];
 	
-	// create the OpenGL view and add it to the window
-	
-	//glView = [[EAGLView alloc] initWithFrame:screenBounds];// pixelFormat:GL_RGB565_OES depthFormat:GL_DEPTH_COMPONENT16_OES preserveBackbuffer:NO];
-	
 	self.glView = [ [ EAGLView alloc ] initWithFrame : screenBounds 
                                             andDepth : iPhoneGetOFWindow()->isDepthEnabled()
                                                andAA : iPhoneGetOFWindow()->isAntiAliasingEnabled() 
@@ -106,12 +103,10 @@
 	
 	[ self.window addSubview : self.glView ];
     
-    self.viewController = [ [ UIViewController alloc ] init ];
-//    [ self.viewController pushViewController: [[[ MenuViewController alloc ] init ] autorelease ] animated: NO ];
-    self.window.rootViewController = self.viewController;
+    if( !self.viewController )
+        self.viewController = [ [ UIViewController alloc ] init ];
     
-	
-	// make window active
+    [ self.window setRootViewController: self.viewController ];
 	[ self.window makeKeyAndVisible ];
 	
 	//----- DAMIAN
@@ -131,9 +126,9 @@
 	
 	self.animating = FALSE;
 	self.displayLinkSupported = FALSE;
-	self.animationFrameInterval = 1;
+	self.animFrameInterval = 1;
 	self.displayLink = nil;
-	self.animationTimer = nil;
+	self.animTimer = nil;
 	
 	// A system version of 3.1 or greater is required to use CADisplayLink. The NSTimer
 	// class is used as fallback when it isn't available.
@@ -271,13 +266,13 @@
             // not be called in system versions earlier than 3.1.
 			
             self.displayLink = [NSClassFromString(@"CADisplayLink") displayLinkWithTarget:self selector:@selector(timerLoop)];
-            [self.displayLink setFrameInterval:self.animationFrameInterval];
+            [self.displayLink setFrameInterval:self.animFrameInterval];
             [self.displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-			ofLog(OF_LOG_VERBOSE, "CADisplayLink supported, running with interval: %i", self.animationFrameInterval);
+			ofLog(OF_LOG_VERBOSE, "CADisplayLink supported, running with interval: %i", self.animFrameInterval);
         }
         else {
-			ofLog(OF_LOG_VERBOSE, "CADisplayLink not supported, running with interval: %i", self.animationFrameInterval);
-            self.animationTimer = [NSTimer scheduledTimerWithTimeInterval:(NSTimeInterval)((1.0 / 60.0) * self.animationFrameInterval) target:self selector:@selector(timerLoop) userInfo:nil repeats:TRUE];
+			ofLog(OF_LOG_VERBOSE, "CADisplayLink not supported, running with interval: %i", self.animFrameInterval);
+            self.animTimer = [NSTimer scheduledTimerWithTimeInterval:(NSTimeInterval)((1.0 / 60.0) * self.animFrameInterval) target:self selector:@selector(timerLoop) userInfo:nil repeats:TRUE];
 		}
 		
         self.animating = TRUE;
@@ -295,8 +290,8 @@
         }
         else
         {
-            [ self.animationTimer invalidate ];
-            self.animationTimer = nil;
+            [ self.animTimer invalidate ];
+            self.animTimer = nil;
 		}
 		
         self.animating = FALSE;
@@ -314,7 +309,7 @@
     // behavior.
     if (frameInterval >= 1)
     {
-        self.animationFrameInterval = frameInterval;
+        self.animFrameInterval = frameInterval;
 		
         if (self.animating)
         {
