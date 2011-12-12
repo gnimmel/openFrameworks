@@ -61,6 +61,11 @@
 	//	[pool release];
 }
 
+-(EAGLView*) getGLView
+{
+    return self.glView;
+}
+
 -(void)lockGL 
 {
 	[ self.glLock lock ];

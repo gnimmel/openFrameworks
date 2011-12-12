@@ -51,11 +51,13 @@
 @property (nonatomic, assign) float				animationFrameInterval;
 @property (nonatomic, assign) id				displayLink;
 
+-(EAGLView*) getGLView;
+
 -(void) receivedRotate:(NSNotification*)notification;
 -(void) setFrameRate:(float)frameRate;
 
--(void)lockGL;
--(void)unlockGL;
+-(void) lockGL;
+-(void) unlockGL;
 
 -(void) stopAnimation;
 -(void) startAnimation;

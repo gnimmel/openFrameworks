@@ -95,6 +95,7 @@ void  ofAppiPhoneWindow::runAppViaInfiniteLoop(ofBaseApp * appPtr) {
 	
 	NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 	UIApplicationMain(nil, nil, nil, @"ofxiPhoneAppDelegate");		// this will run the infinite loop checking all events
+//    UIApplicationMain(nil, nil, nil, @"MyAppDelegate");
 	[pool release];	
 }
 
