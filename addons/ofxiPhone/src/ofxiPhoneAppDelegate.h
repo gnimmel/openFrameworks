@@ -36,25 +36,29 @@
 #import "EAGLView.h"
 #import "ofAppiPhoneWindow.h"
 
-@interface ofxiPhoneAppDelegate : NSObject <UIApplicationDelegate> {
-	NSTimer				*animationTimer;
-    BOOL				animating;
-    BOOL				displayLinkSupported;
-    float				animationFrameInterval;
-    id					displayLink;
-	
-	EAGLView			*glView;
-
-	NSLock				*glLock;
+@interface ofxiPhoneAppDelegate : NSObject <UIApplicationDelegate> 
+{
+    //
 }
 
-- (BOOL)application:(UIApplication *)application handleOpenURL:(NSURL *)url;
+@property (nonatomic, retain) UIWindow*         window;
+@property (nonatomic, retain) UIViewController* viewController;
+@property (nonatomic, retain) EAGLView*         glView;
+@property (nonatomic, retain) NSLock*           glLock;
+@property (nonatomic, retain) NSTimer*          animationTimer;
+@property (nonatomic, assign) BOOL				animating;
+@property (nonatomic, assign) BOOL				displayLinkSupported;
+@property (nonatomic, assign) float				animationFrameInterval;
+@property (nonatomic, assign) id				displayLink;
+
 -(void) receivedRotate:(NSNotification*)notification;
 -(void) setFrameRate:(float)frameRate;
--(EAGLView*) getGLView;
 
 -(void)lockGL;
 -(void)unlockGL;
+
+-(void) stopAnimation;
+-(void) startAnimation;
 
 @end
 

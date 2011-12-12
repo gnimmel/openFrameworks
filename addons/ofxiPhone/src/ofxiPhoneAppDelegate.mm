@@ -38,7 +38,15 @@
 
 @implementation ofxiPhoneAppDelegate
 
-
+@synthesize window;
+@synthesize viewController;
+@synthesize glView;
+@synthesize glLock;
+@synthesize animationTimer;
+@synthesize animating;
+@synthesize displayLinkSupported;
+@synthesize animationFrameInterval;
+@synthesize displayLink;
 
 
 -(void) timerLoop {
@@ -53,44 +61,53 @@
 	//	[pool release];
 }
 
--(EAGLView*) getGLView {
-	return glView;
+-(void)lockGL 
+{
+	[ self.glLock lock ];
 }
 
--(void)lockGL {
-	[glLock lock];
+-(void)unlockGL 
+{
+	[ self.glLock unlock ];
 }
 
--(void)unlockGL {
-	[glLock unlock];
-}
+/////////////////////////////////////////////////////////
+//  APPLICATION CALLBACKS.
+/////////////////////////////////////////////////////////
 
-
-
--(void) applicationDidFinishLaunching:(UIApplication *)application {    
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+{    
 	static ofEventArgs voidEventArgs;
 	ofLog(OF_LOG_VERBOSE, "applicationDidFinishLaunching() start");
 	
 	// create an NSLock for GL Context locking
-	glLock = [[NSLock alloc] init];
+	self.glLock = [ [ NSLock alloc ] init ];
 	
 	// get screen bounds
 	CGRect screenBounds = [[UIScreen mainScreen] bounds];
 	
 	// create fullscreen window
-	UIWindow *window = [[UIWindow alloc] initWithFrame:screenBounds];
+	self.window = [[UIWindow alloc] initWithFrame:screenBounds];
 	
 	// create the OpenGL view and add it to the window
 	
 	//glView = [[EAGLView alloc] initWithFrame:screenBounds];// pixelFormat:GL_RGB565_OES depthFormat:GL_DEPTH_COMPONENT16_OES preserveBackbuffer:NO];
 	
-	glView = [[EAGLView alloc] initWithFrame:screenBounds andDepth:iPhoneGetOFWindow()->isDepthEnabled() andAA:iPhoneGetOFWindow()->isAntiAliasingEnabled() andNumSamples:iPhoneGetOFWindow()->getAntiAliasingSampleCount() andRetina:iPhoneGetOFWindow()->isRetinaSupported()];
+	self.glView = [ [ EAGLView alloc ] initWithFrame : screenBounds 
+                                            andDepth : iPhoneGetOFWindow()->isDepthEnabled()
+                                               andAA : iPhoneGetOFWindow()->isAntiAliasingEnabled() 
+                                       andNumSamples : iPhoneGetOFWindow()->getAntiAliasingSampleCount() 
+                                           andRetina : iPhoneGetOFWindow()->isRetinaSupported()];
 	
-	[window addSubview:glView];
-	//	[glView release];	// do not release, incase app wants to removeFromSuper and add later
+	[ self.window addSubview : self.glView ];
+    
+    self.viewController = [ [ UIViewController alloc ] init ];
+//    [ self.viewController pushViewController: [[[ MenuViewController alloc ] init ] autorelease ] animated: NO ];
+    self.window.rootViewController = self.viewController;
+    
 	
 	// make window active
-	[window makeKeyAndVisible];
+	[ self.window makeKeyAndVisible ];
 	
 	//----- DAMIAN
 	// set data path root for ofToDataPath()
@@ -107,11 +124,11 @@
 	//-----
 	
 	
-	animating = FALSE;
-	displayLinkSupported = FALSE;
-	animationFrameInterval = 1;
-	displayLink = nil;
-	animationTimer = nil;
+	self.animating = FALSE;
+	self.displayLinkSupported = FALSE;
+	self.animationFrameInterval = 1;
+	self.displayLink = nil;
+	self.animationTimer = nil;
 	
 	// A system version of 3.1 or greater is required to use CADisplayLink. The NSTimer
 	// class is used as fallback when it isn't available.
@@ -151,6 +168,84 @@
 }
 
 
+- (void)applicationWillResignActive:(UIApplication *)application 
+{
+	[self stopAnimation];
+	
+	ofxiPhoneAlerts.lostFocus();
+}
+
+- (void)applicationDidBecomeActive:(UIApplication *)application 
+{
+	[self startAnimation];
+	
+	ofxiPhoneAlerts.gotFocus();
+}
+
+- (void)applicationWillTerminate:(UIApplication *)application 
+{
+	[self stopAnimation];
+	
+    // stop listening for orientation change notifications
+    [[NSNotificationCenter defaultCenter] removeObserver: self];
+    [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
+    
+    self.glView = nil;
+}
+
+/////////////////////////////////////////////////////////
+//  MEMORY.
+/////////////////////////////////////////////////////////
+
+- (void)simulateMemoryWarning 
+{
+#if TARGET_IPHONE_SIMULATOR
+    CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (CFStringRef)@"UISimulatedMemoryWarningNotification", NULL, NULL, true);
+#endif
+}
+
+- (void) applicationDidReceiveMemoryWarning:(UIApplication *)application 
+{
+    ofxiPhoneAlerts.gotMemoryWarning();
+}
+
+/////////////////////////////////////////////////////////
+//  PUSH NOTIFICATIONS.
+/////////////////////////////////////////////////////////
+
+- (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken 
+{
+    //
+}
+
+- (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error 
+{
+    //
+}
+
+- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo 
+{
+    //
+}
+
+/////////////////////////////////////////////////////////
+//  
+/////////////////////////////////////////////////////////
+
+-(void) dealloc 
+{
+    [ofxiPhoneGetUIWindow() release];
+	
+    self.glLock = nil;
+    
+    [super dealloc];
+}
+
+
+/////////////////////////////////////////////////////////
+//  
+/////////////////////////////////////////////////////////
+
 -(void) receivedRotate:(NSNotification*)notification {
 	UIDeviceOrientation interfaceOrientation = [[UIDevice currentDevice] orientation];
     ofLog(OF_LOG_NOTICE, "Device orientation changed to %i", interfaceOrientation);
@@ -162,44 +257,44 @@
 
 - (void)startAnimation
 {
-    if (!animating)
+    if (!self.animating)
     {
-        if (displayLinkSupported)
+        if (self.displayLinkSupported)
         {
             // CADisplayLink is API new to iPhone SDK 3.1. Compiling against earlier versions will result in a warning, but can be dismissed
             // if the system version runtime check for CADisplayLink exists in -initWithCoder:. The runtime check ensures this code will
             // not be called in system versions earlier than 3.1.
 			
-            displayLink = [NSClassFromString(@"CADisplayLink") displayLinkWithTarget:self selector:@selector(timerLoop)];
-            [displayLink setFrameInterval:animationFrameInterval];
-            [displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-			ofLog(OF_LOG_VERBOSE, "CADisplayLink supported, running with interval: %i", animationFrameInterval);
+            self.displayLink = [NSClassFromString(@"CADisplayLink") displayLinkWithTarget:self selector:@selector(timerLoop)];
+            [self.displayLink setFrameInterval:self.animationFrameInterval];
+            [self.displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+			ofLog(OF_LOG_VERBOSE, "CADisplayLink supported, running with interval: %i", self.animationFrameInterval);
         }
         else {
-			ofLog(OF_LOG_VERBOSE, "CADisplayLink not supported, running with interval: %i", animationFrameInterval);
-            animationTimer = [NSTimer scheduledTimerWithTimeInterval:(NSTimeInterval)((1.0 / 60.0) * animationFrameInterval) target:self selector:@selector(timerLoop) userInfo:nil repeats:TRUE];
+			ofLog(OF_LOG_VERBOSE, "CADisplayLink not supported, running with interval: %i", self.animationFrameInterval);
+            self.animationTimer = [NSTimer scheduledTimerWithTimeInterval:(NSTimeInterval)((1.0 / 60.0) * self.animationFrameInterval) target:self selector:@selector(timerLoop) userInfo:nil repeats:TRUE];
 		}
 		
-        animating = TRUE;
+        self.animating = TRUE;
     }
 }
 
 - (void)stopAnimation
 {
-    if (animating)
+    if (self.animating)
     {
-        if (displayLinkSupported)
+        if (self.displayLinkSupported)
         {
-            [displayLink invalidate];
-            displayLink = nil;
+            [self.displayLink invalidate];
+            self.displayLink = nil;
         }
         else
         {
-            [animationTimer invalidate];
-            animationTimer = nil;
+            [ self.animationTimer invalidate ];
+            self.animationTimer = nil;
 		}
 		
-        animating = FALSE;
+        self.animating = FALSE;
     }
 }
 
@@ -214,9 +309,9 @@
     // behavior.
     if (frameInterval >= 1)
     {
-        animationFrameInterval = frameInterval;
+        self.animationFrameInterval = frameInterval;
 		
-        if (animating)
+        if (self.animating)
         {
             [self stopAnimation];
             [self startAnimation];
@@ -230,59 +325,6 @@
 	
 	if(rate>0) [self setAnimationFrameInterval:60.0/rate];
 	else [self stopAnimation];
-}
-
-
-
--(void) dealloc {
-    [ofxiPhoneGetUIWindow() release];
-	[glLock release];
-    [super dealloc];
-}
-
-
-
-
--(void) applicationWillResignActive:(UIApplication *)application {
-	[self stopAnimation];
-	
-	ofxiPhoneAlerts.lostFocus();
-	
-	//just extend ofxiPhoneAlertsListener with testApp and implement these methods to use them,
-	//behaves just like ofxMultiTouchListener
-}
-
-
--(void) applicationDidBecomeActive:(UIApplication *)application {
-	[self startAnimation];
-	
-	ofxiPhoneAlerts.gotFocus();
-}
-
-
--(void) applicationWillTerminate:(UIApplication *)application {
-	[self stopAnimation];
-	
-    // stop listening for orientation change notifications
-    [[NSNotificationCenter defaultCenter] removeObserver: self];
-    [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
-    
-	[glView release];
-	
-}
-
-
--(void) applicationDidReceiveMemoryWarning:(UIApplication *)application {
-	ofxiPhoneAlerts.gotMemoryWarning();
-}
-
-
-- (BOOL)application:(UIApplication *)application handleOpenURL:(NSURL *)url {
-	
-	NSString *urlData = [url absoluteString];
-	const char * response = [urlData UTF8String];
-	ofxiPhoneAlerts.launchedWithURL(response);
-	return YES;
 }
 
 @end
